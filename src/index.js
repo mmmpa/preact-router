@@ -64,10 +64,10 @@ function canRoute(url) {
 
 
 /** Tell all router instances to handle the given URL.  */
-function routeTo(url) {
+async function routeTo(url) {
 	let didRoute = false;
 	for (let i=0; i<ROUTERS.length; i++) {
-		if (ROUTERS[i].routeTo(url)===true) {
+		if (await ROUTERS[i].routeTo(url)===true) {
 			didRoute = true;
 		}
 	}
@@ -144,6 +144,31 @@ function initEventListeners() {
 	eventListenersInitialized = true;
 }
 
+function getMatching(children, url) {
+	return children
+		.filter(prepareVNodeForRanking)
+		.sort(pathRankSort)
+		.reduce((a, vnode) => {
+			const next = a.concat(getMatching(vnode.children, url));
+			const matches = exec(url, vnode.attributes.path, vnode.attributes)
+			matches && next.push({
+				matches,
+				beforeHook: vnode.attributes.beforeHook,
+			});
+			return next
+		}, []).filter(Boolean);
+}
+
+async function hookBeforeChange(props, active) {
+	if (!props.beforeChange || !active[0]) {
+		return
+	}
+	return props.beforeChange({
+		matches: active[0].attributes.matches,
+		beforeHook: active[0].attributes.beforeHook,
+	});
+}
+
 
 class Router extends Component {
 	constructor(props) {
@@ -170,9 +195,12 @@ class Router extends Component {
 	}
 
 	/** Re-render children with a new URL to match against. */
-	routeTo(url) {
+	async routeTo(url) {
+		const active = this.getMatchingChildren(this.props.children, url, true);
+		await hookBeforeChange(this.props, active)
+
 		this._didRoute = false;
-		this.setState({ url });
+		this.setState({ url, active });
 
 		// if we're in the middle of an update, don't synchronously re-route.
 		if (this.updating) return this.canRoute(url);
@@ -227,8 +255,7 @@ class Router extends Component {
 			}).filter(Boolean);
 	}
 
-	render({ children, onChange }, { url }) {
-		let active = this.getMatchingChildren(children, url, true);
+	render({ children, onChange }, { url, active = this.getMatchingChildren(children, url, true) }) {
 
 		let current = active[0] || null;
 		this._didRoute = !!current;
@@ -264,5 +291,5 @@ Router.Router = Router;
 Router.Route = Route;
 Router.Link = Link;
 
-export { subscribers, getCurrentUrl, route, Router, Route, Link };
+export { subscribers, getCurrentUrl, route, Router, Route, Link, getMatching };
 export default Router;

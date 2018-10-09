@@ -4,6 +4,10 @@ export function route(url: string, replace?: boolean): boolean;
 export function route(options: { url: string; replace?: boolean }): boolean;
 
 export function getCurrentUrl(): string;
+export function getMatching(
+  children: (preact.VNode | string)[],
+  url: string,
+): any[];
 
 export interface Location {
     pathname: string;
@@ -20,6 +24,7 @@ export interface CustomHistory {
 export interface RoutableProps {
     path?: string;
     default?: boolean;
+    beforeHook?: (any) => Promise<any>
 }
 
 export interface RouterOnChangeArgs {
@@ -35,6 +40,7 @@ export interface RouterProps extends RoutableProps {
     static?: boolean;
     url?: string;
     onChange?: (args: RouterOnChangeArgs) => void;
+    beforeChange?: (any) => Promise<any>|void;
 }
 
 export class Router extends preact.Component<RouterProps, {}> {
